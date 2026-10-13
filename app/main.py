@@ -17,6 +17,7 @@ from app.schemas import EventCreate, EventOut, ReviewIn
 MADRID = ZoneInfo("Europe/Madrid")
 
 
+
 # ============================================================
 # CONFIGURACIÓN: MODO MOCK
 # ============================================================
@@ -51,7 +52,11 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origin_list,
+    allow_origins=[
+        "http://localhost:4204",
+        "http://127.0.0.1:4204",
+        "https://jaen-eventos-frontend.onrender.com",
+    ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
     allow_headers=["*"],
