@@ -13,6 +13,8 @@ from app.database import get_db
 from app.models import Event
 from app.schemas import EventCreate, EventOut, ReviewIn
 
+import unicodedata
+
 
 MADRID = ZoneInfo("Europe/Madrid")
 
@@ -62,6 +64,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+
+def normalize_text(value: str | None) -> str:
+    """Normaliza el texto para buscar sin distinguir tildes ni mayúsculas."""
+    if not value:
+        return ""
+
+    normalized = unicodedata.normalize("NFD", value.casefold())
+
+    return "".join(
+        character
+        for character in normalized
+        if unicodedata.category(character) != "Mn"
+    )
 
 # ============================================================
 # EVENTOS DE PRUEBA
@@ -269,14 +285,20 @@ def list_events(
             ]
 
         if q and q.strip():
-            search_text = q.strip().casefold()
+            search_text = normalize_text(q.strip())
 
             events = [
                 event for event in events
-                if search_text in event["title"].casefold()
-                or search_text in event["description"].casefold()
-                or search_text in event["venue"].casefold()
-                or search_text in event["address"].casefold()
+                if any(
+                    search_text in normalize_text(event.get(field))
+                    for field in (
+                        "title",
+                        "description",
+                        "venue",
+                        "address",
+                        "price_text",
+                    )
+                )
             ]
 
         return sorted(events, key=lambda event: event["starts_at"])[:300]
@@ -315,7 +337,7 @@ def list_events(
     if category and category.lower() != "todos":
         stmt = stmt.where(Event.category == category.lower())
 
-    if q:
+    if q and q.strip():
         like = f"%{q.strip()}%"
         stmt = stmt.where(
             or_(
@@ -323,6 +345,7 @@ def list_events(
                 Event.description.ilike(like),
                 Event.venue.ilike(like),
                 Event.address.ilike(like),
+                Event.price_text.ilike(like),
             )
         )
 
